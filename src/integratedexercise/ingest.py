@@ -4,6 +4,8 @@ from time import sleep
 import argparse
 import requests
 import logging
+import copy
+import json
 from datetime import datetime
 
 from botocore.client import ClientError
@@ -11,28 +13,39 @@ import boto3
 
 CATEGORY_IDS = ["1", "5", "8", "71", "6001"]
 
-def ingest_data(env, date):
-    station_id = 1164
-    endpoint = f'https://geo.irceline.be/sos/api/v1/stations/{station_id}?expanded=true'
-
-    raw_data = requests.get(endpoint).json()
-    time_series = raw_data['properties']['timeseries']
-
-    # only keep timeseries ids which correspond to one of the interesting category ids
-    filtered_tsi = [x for x in time_series.keys() if time_series[x]['category']['id'] in CATEGORY_IDS]
+def ingest_data(env, date, bucket):
+    endpoint = f'https://geo.irceline.be/sos/api/v1/stations/'
+    stations_data = requests.get(endpoint).json()
+    station_ids = [x['properties']['id'] for x in stations_data]
     
-    for tsi in filtered_tsi:
-        # get the values for a day of all these timeseries
-        raw_timeseries_data = get_timeseries_of_date(tsi, date)
+    for station_id in station_ids:
+        endpoint = f'https://geo.irceline.be/sos/api/v1/stations/{station_id}?expanded=true'
 
-        # push the values to the s3 bucket
-        for i in raw_timeseries_data['values']:
-            print(f'{datetime.fromtimestamp(i['timestamp']/1000)}: {i['value']}')
-        pass
+        raw_data = requests.get(endpoint).json()
+        raw_data['properties']['date'] = date
+        time_series = raw_data['properties']['timeseries']
 
+        # only keep timeseries ids which correspond to one of the interesting category ids
+        filtered_tsi = [x for x in time_series.keys() if time_series[x]['category']['id'] in CATEGORY_IDS]
+        
+        for tsi in filtered_tsi:
+            # get the values for a day of all these timeseries
+            raw_timeseries_data = get_timeseries_of_date(tsi, date)
+
+            # Add values to the timeseries field
+            time_series[str(tsi)]['values'] = raw_timeseries_data
+
+            raw_data_copy = copy.deepcopy(raw_data)
+            raw_data_copy['properties']['timeseries'] = {}
+            raw_data_copy['properties']['timeseries'][str(tsi)] = raw_data['properties']['timeseries'][str(tsi)]
+            metric = raw_data_copy['properties']['timeseries'][str(tsi)]['category']['label']
+            station = raw_data_copy['properties']['timeseries'][str(tsi)]['feature']['label']
+            
+            bucket.put_object(Body=json.dumps(raw_data_copy), Key=f'Alec-data/{date}/{station}/{metric}.json', ContentType='application/json')
+    
 
 def get_timeseries_of_date(timeseries_id, date):
-    endpoint = f"https://geo.irceline.be/sos/api/v1/timeseries/{timeseries_id}/getData?timespan=PT24H/{date}"
+    endpoint = f"https://geo.irceline.be/sos/api/v1/timeseries/{timeseries_id}/getData?timespan=PT23H/{date}"
     raw_timeseries_data = requests.get(endpoint).json()
     return raw_timeseries_data
 
@@ -66,8 +79,8 @@ def main():
     args = parser.parse_args()
     logging.info(f"Using args: {args}")
 
-    create_s3_if_not_exists('irceline-data')
-    ingest_data(args.env, args.date)
+    bucket = create_s3_if_not_exists('data-track-integrated-exercise')
+    ingest_data(args.env, args.date, bucket)
 
 if __name__ == "__main__":
     main()
