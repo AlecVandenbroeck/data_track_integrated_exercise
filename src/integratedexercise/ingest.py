@@ -6,6 +6,8 @@ import requests
 import logging
 
 def process_raw_data(s3_bucket: str, date: str):
+    station_id = 1163
+    raw_data = requests.get('https://geo.irceline.be/sos/api/v1/stations/{station_id}?expanded=true')
     pass
 
 def main():
