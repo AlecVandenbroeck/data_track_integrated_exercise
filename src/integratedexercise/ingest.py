@@ -26,7 +26,6 @@ def ingest_data(env, date):
         raw_timeseries_data = get_timeseries_of_date(tsi, date)
 
         # push the values to the s3 bucket
-        print(len(raw_timeseries_data['values']))
         for i in raw_timeseries_data['values']:
             print(f'{datetime.fromtimestamp(i['timestamp']/1000)}: {i['value']}')
         pass
@@ -45,7 +44,7 @@ def create_s3_if_not_exists(bucket_name):
         s3.meta.client.head_bucket(Bucket=bucket.name)
     except ClientError:
         print(f'[LOG] Creating S3 bucket named {bucket_name}')
-        bucket = s3.create_bucket(Bucket=bucket_name)
+        bucket = s3.create_bucket(Bucket=bucket_name, CreateBucketConfiguration={'LocationConstraint': 'eu-west-1'})
 
     return bucket
 
