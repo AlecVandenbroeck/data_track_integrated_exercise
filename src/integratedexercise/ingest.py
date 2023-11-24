@@ -8,12 +8,13 @@ import copy
 import json
 from datetime import datetime
 
-from botocore.client import ClientError
-import boto3
+from util import create_s3_if_not_exists
 
 CATEGORY_IDS = ["1", "5", "8", "71", "6001"]
 
-def ingest_data(env, date, bucket):
+def ingest_data(env, date):
+    bucket = create_s3_if_not_exists('data-track-integrated-exercise')
+
     if env == 'all':
         endpoint = f'https://geo.irceline.be/sos/api/v1/stations/'
         stations_data = requests.get(endpoint).json()
@@ -58,18 +59,6 @@ def get_timeseries_of_date(timeseries_id, date):
     raw_timeseries_data = requests.get(endpoint).json()
     return raw_timeseries_data
 
-def create_s3_if_not_exists(bucket_name):
-    s3 = boto3.resource('s3')
-    bucket = s3.Bucket(bucket_name)
-    
-    try:
-        s3.meta.client.head_bucket(Bucket=bucket.name)
-    except ClientError:
-        logging.info(f'Creating S3 bucket named {bucket_name}')
-        bucket = s3.create_bucket(Bucket=bucket_name, CreateBucketConfiguration={'LocationConstraint': 'eu-west-1'})
-
-    return bucket
-
 def main():
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     parser = argparse.ArgumentParser(description="Building greeter")
@@ -82,8 +71,7 @@ def main():
     args = parser.parse_args()
     logging.info(f"Using args: {args}")
 
-    bucket = create_s3_if_not_exists('data-track-integrated-exercise')
-    ingest_data(args.env, args.date, bucket)
+    ingest_data(args.env, args.date)
 
 if __name__ == "__main__":
     main()
