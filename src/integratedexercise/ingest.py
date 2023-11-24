@@ -14,9 +14,13 @@ import boto3
 CATEGORY_IDS = ["1", "5", "8", "71", "6001"]
 
 def ingest_data(env, date, bucket):
-    endpoint = f'https://geo.irceline.be/sos/api/v1/stations/'
-    stations_data = requests.get(endpoint).json()
-    station_ids = [x['properties']['id'] for x in stations_data]
+    if env == 'all':
+        endpoint = f'https://geo.irceline.be/sos/api/v1/stations/'
+        stations_data = requests.get(endpoint).json()
+        station_ids = [x['properties']['id'] for x in stations_data]
+    else:
+        station_ids = [env]
+    
     ts_count = 0
     logging.info(f"Found {len(station_ids)} stations to ingest data from.")
     
@@ -65,12 +69,6 @@ def create_s3_if_not_exists(bucket_name):
         bucket = s3.create_bucket(Bucket=bucket_name, CreateBucketConfiguration={'LocationConstraint': 'eu-west-1'})
 
     return bucket
-
-def push_s3(raw_data):
-    pass
-
-def process_raw_data(s3_bucket: str, date: str):
-    pass
 
 def main():
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
