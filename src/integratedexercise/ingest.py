@@ -17,6 +17,8 @@ def ingest_data(env, date, bucket):
     endpoint = f'https://geo.irceline.be/sos/api/v1/stations/'
     stations_data = requests.get(endpoint).json()
     station_ids = [x['properties']['id'] for x in stations_data]
+    ts_count = 0
+    logging.info(f"Found {len(station_ids)} stations to ingest data from.")
     
     for station_id in station_ids:
         endpoint = f'https://geo.irceline.be/sos/api/v1/stations/{station_id}?expanded=true'
@@ -27,6 +29,7 @@ def ingest_data(env, date, bucket):
 
         # only keep timeseries ids which correspond to one of the interesting category ids
         filtered_tsi = [x for x in time_series.keys() if time_series[x]['category']['id'] in CATEGORY_IDS]
+        
         
         for tsi in filtered_tsi:
             # get the values for a day of all these timeseries
@@ -41,7 +44,9 @@ def ingest_data(env, date, bucket):
             metric = raw_data_copy['properties']['timeseries'][str(tsi)]['category']['label']
             station = raw_data_copy['properties']['timeseries'][str(tsi)]['feature']['label']
             
+            ts_count += 1
             bucket.put_object(Body=json.dumps(raw_data_copy), Key=f'Alec-data/{date}/{station}/{metric}.json', ContentType='application/json')
+    logging.info(f'Ingested {ts_count} timeseries.')
     
 
 def get_timeseries_of_date(timeseries_id, date):
@@ -56,7 +61,7 @@ def create_s3_if_not_exists(bucket_name):
     try:
         s3.meta.client.head_bucket(Bucket=bucket.name)
     except ClientError:
-        print(f'[LOG] Creating S3 bucket named {bucket_name}')
+        logging.info(f'Creating S3 bucket named {bucket_name}')
         bucket = s3.create_bucket(Bucket=bucket_name, CreateBucketConfiguration={'LocationConstraint': 'eu-west-1'})
 
     return bucket
