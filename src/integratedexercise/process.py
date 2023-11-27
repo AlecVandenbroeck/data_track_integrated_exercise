@@ -4,8 +4,21 @@ import argparse
 from util import create_s3_if_not_exists
 import json
 import boto3
+from pyspark.sql import SparkSession
 
 def process_raw_data(date: str):
+    SparkSession.builder.config(
+        "spark.jars.packages",
+        ",".join(
+            [
+                "org.apache.hadoop:hadoop-aws:3.3.1",
+            ]
+        ),
+    ).config(
+        "fs.s3a.aws.credentials.provider",
+        "com.amazonaws.auth.DefaultAWSCredentialsProviderChain",
+    ).getOrCreate()
+
     bucket = create_s3_if_not_exists('data-track-integrated-exercise')
     bucket.put_object(Body='', Key=f'', ContentType='application/json')
     pass
