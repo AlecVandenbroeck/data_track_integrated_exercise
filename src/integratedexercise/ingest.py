@@ -46,11 +46,11 @@ def ingest_data(env, date):
             raw_data_copy = copy.deepcopy(raw_data)
             raw_data_copy['properties']['timeseries'] = {}
             raw_data_copy['properties']['timeseries'][str(tsi)] = raw_data['properties']['timeseries'][str(tsi)]
-            metric = raw_data_copy['properties']['timeseries'][str(tsi)]['category']['label']
-            station = raw_data_copy['properties']['timeseries'][str(tsi)]['feature']['label']
+            metric = raw_data_copy['properties']['timeseries'][str(tsi)]['category']['id']
+            station = raw_data_copy['properties']['timeseries'][str(tsi)]['feature']['id']
             
             ts_count += 1
-            bucket.put_object(Body=json.dumps(raw_data_copy), Key=f'Alec-data/{date}/{station}/{metric}.json', ContentType='application/json')
+            bucket.put_object(Body=json.dumps(raw_data_copy), Key=f'Alec-data/raw/{date}/{station}/{metric}.json', ContentType='application/json')
     logging.info(f'Ingested {ts_count} timeseries.')
     
 
@@ -63,7 +63,7 @@ def main():
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     parser = argparse.ArgumentParser(description="Building greeter")
     parser.add_argument(
-        "-d", "--date", dest="date", help="date in format YYYY-mm-dd", required=True
+        "-d", "--date", dest="date", help="Date in format YYYY-mm-dd", required=True
     )
     parser.add_argument(
         "-e", "--env", dest="env", help="The environment in which we execute the code", required=True
