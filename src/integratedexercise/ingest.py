@@ -6,15 +6,14 @@ import requests
 import logging
 import copy
 import json
+import os
 from datetime import datetime
 
 from util import create_s3_if_not_exists
 
 CATEGORY_IDS = ["1", "5", "8", "71", "6001"]
 
-def ingest_data(env, date):
-    bucket = create_s3_if_not_exists('data-track-integrated-exercise')
-
+def ingest_data(env, date, bucket):
     if env == 'all':
         endpoint = f'https://geo.irceline.be/sos/api/v1/stations/'
         stations_data = requests.get(endpoint).json()
@@ -51,6 +50,7 @@ def ingest_data(env, date):
             
             ts_count += 1
             bucket.put_object(Body=json.dumps(raw_data_copy), Key=f'Alec-data/raw/{date}/{station}/{metric}.json', ContentType='application/json')
+    
     logging.info(f'Ingested {ts_count} timeseries.')
     
 
@@ -60,7 +60,6 @@ def get_timeseries_of_date(timeseries_id, date):
     return raw_timeseries_data
 
 def main():
-    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     parser = argparse.ArgumentParser(description="Building greeter")
     parser.add_argument(
         "-d", "--date", dest="date", help="Date in format YYYY-mm-dd", required=True
@@ -69,9 +68,18 @@ def main():
         "-e", "--env", dest="env", help="The environment in which we execute the code", required=True
     )
     args = parser.parse_args()
-    logging.info(f"Using args: {args}")
+    bucket = create_s3_if_not_exists('data-track-integrated-exercise')
+    
+    logging.basicConfig(filename=f'{args.date}.log', filemode='w+', level=logging.INFO, format='[%(levelname)s %(asctime)s] %(message)s')
+    try:
+        logging.info(f"Using args: {args}")
 
-    ingest_data(args.env, args.date)
-
+        ingest_data(args.env, args.date, bucket)
+    except Exception as e:
+        logging.error(e)
+    finally:
+        bucket.upload_file(f'{args.date}.log', f'Alec-data/logs/{args.date}.log')
+        os.remove(f'{args.date}.log')
+        
 if __name__ == "__main__":
     main()

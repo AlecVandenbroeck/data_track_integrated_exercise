@@ -1,5 +1,5 @@
-from botocore.client import ClientError
 import boto3
+from botocore.client import ClientError
 import logging
 
 
