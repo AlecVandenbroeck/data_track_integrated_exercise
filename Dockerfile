@@ -1,12 +1,13 @@
-FROM public.ecr.aws/dataminded/spark-k8s-glue:v3.2.1-hadoop-3.3.1
-
-ENV PYSPARK_PYTHON python3
-WORKDIR /opt/spark/work-dir
+FROM python:3.12.0-alpine
 
 USER 0
 
+COPY ./src ./src
+COPY ./tests ./tests
+COPY pytest.ini pytest.ini
 COPY requirements.txt requirements.txt
+COPY setup.py setup.py
+
 RUN pip install -r requirements.txt --no-cache-dir
-COPY . .
 
 RUN pip install --no-cache-dir -e .

@@ -78,7 +78,7 @@ def main():
     except Exception as e:
         logging.error(e)
     finally:
-        bucket.upload_file(f'{args.date}.log', f'Alec-data/logs/{args.date}.log')
+        bucket.upload_file(f'{args.date}.log', f'Alec-data/logs/{args.date}/ingest.log')
         os.remove(f'{args.date}.log')
         
 if __name__ == "__main__":
