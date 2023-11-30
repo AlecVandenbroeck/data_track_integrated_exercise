@@ -1,3 +1,4 @@
 src/integratedexercise/__pycache__/*
 venv/*
 *.log
+infrastructure/.terraform/*

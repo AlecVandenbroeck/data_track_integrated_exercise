@@ -7,6 +7,7 @@ import boto3
 from pyspark.sql import SparkSession, Window
 from pyspark.sql.functions import explode, avg, to_timestamp
 from datetime import datetime as dt
+from time import time
 
 def transform_raw_data(date: str, bucket):
     session = SparkSession.builder.config(
@@ -27,6 +28,8 @@ def transform_raw_data(date: str, bucket):
     df = df.drop('type')
     df = df.withColumn('coordinates', df.geometry.coordinates)
     df = df.drop('geometry')
+    df = df.withColumn('coordinate_x', df.coordinates[0]).withColumn('coordinate_y', df.coordinates[1]).withColumn('coordinate_z', df.coordinates[2])
+    df = df.drop('coordinates')
     df = df.withColumn('date', df.properties.date).withColumn('station_id', df.properties.id).withColumn('station_label', df.properties.label).withColumn('timeseries', df.properties.timeseries)
     df = df.drop('properties')
     df = df.withColumn('service_id', df.timeseries.service.id).withColumn('service_label', df.timeseries.service.label).withColumn('offering_id', df.timeseries.offering.id).withColumn('offering_label', df.timeseries.offering.label) \
@@ -34,7 +37,7 @@ def transform_raw_data(date: str, bucket):
     .withColumn('phenomenon_id', df.timeseries.phenomenon.id).withColumn('phenomenon_label', df.timeseries.phenomenon.label).withColumn('category_id', df.timeseries.category.id).withColumn('category_label', df.timeseries.category.label) \
     .withColumn('measurements', explode(df.timeseries.values))
     df = df.drop('timeseries')
-    df = df.withColumn('measurement_timestamp', to_timestamp(df.measurements.timestamp)).withColumn('measurement_value', df.measurements.value)
+    df = df.withColumn('datetime', to_timestamp(df.measurements.timestamp/1000)).withColumn('measurement_value', df.measurements.value).withColumn('measurement_timestamp', df.measurements.timestamp)
     df = df.drop('measurements')
     df = df.withColumn('average_measurement', avg('measurement_value').over(Window.partitionBy('phenomenon_id', 'station_id')))
 
@@ -54,10 +57,12 @@ def main():
     logging.basicConfig(filename=f'{args.date}.log', filemode='w+', level=logging.INFO, format='[%(levelname)s %(asctime)s] %(message)s')
     try:
         logging.info(f"Using args: {args}")
-
+        start = time()
         transform_raw_data(args.date, bucket)
+        logging.info(f"Job succeeded in {(time()-start):.2f} seconds")
     except Exception as e:
         logging.error(e)
+        logging.info(f"Job failed after {(time()-start):.2f} seconds")
         raise e
     finally:
         bucket.upload_file(f'{args.date}.log', f'Alec-data/logs/{args.date}/transform.log')

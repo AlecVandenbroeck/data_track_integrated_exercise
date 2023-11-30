@@ -8,6 +8,7 @@ from pyspark.sql import SparkSession, Window
 from pyspark.sql.functions import explode, avg, to_timestamp
 from datetime import datetime as dt
 import json
+from time import time
 
 # https://community.snowflake.com/s/article/How-to-UPDATE-a-table-using-pyspark-via-the-Snowflake-Spark-connector
 
@@ -30,13 +31,14 @@ def get_snowflake_creds_from_sm(secret_name: str):
     }
 
 def egress_data(date: str, bucket):
+    SNOWFLAKE_SOURCE_NAME = "net.snowflake.spark.snowflake"
     session = SparkSession.builder.config(
         "spark.jars.packages",
         ",".join(
             [
                 "org.apache.hadoop:hadoop-aws:3.3.1",
-                "net.snowflake:spark-snowflake_2.12:2.9.0-spark_3.1",
-                "net.snowflake:snowflake-jdbc:3.13.3"
+                "net.snowflake:spark-snowflake_2.12:2.5.4-spark_2.4",
+                "net.snowflake:snowflake-jdbc:3.14.3"
             ]
         ),
     ).config(
@@ -45,14 +47,35 @@ def egress_data(date: str, bucket):
     ).getOrCreate()
     sfOptions = get_snowflake_creds_from_sm('snowflake/integrated-exercise/alec-login')
     df = session.read.parquet(f"s3a://data-track-integrated-exercise/Alec-data/clean/aggregate_station_by_day/{date}/")
-    df.printSchema()
-    SNOWFLAKE_SOURCE_NAME = "net.snowflake.spark.snowflake"
+    df = df.drop('date')
+    
 
     
     session.sparkContext._jvm.net.snowflake.spark.snowflake.Utils.runQuery(sfOptions, 
-                                                                          """CREATE TABLE IF NOT EXISTS ACADEMY_DBT.AXXES_ALEC.AVG_STATION_MEASUREMENT(A INTEGER)""")
+                                                                          f"""CREATE TABLE IF NOT EXISTS ACADEMY_DBT.AXXES_ALEC.AVG_STATION_MEASUREMENT_{date.replace('-', '_')} (
+                                                                            COORDINATE_X FLOAT, 
+                                                                            COORDINATE_Y FLOAT, 
+                                                                            COORDINATE_Z FLOAT,
+                                                                            STATION_LABEL VARCHAR,
+                                                                            SERVICE_ID VARCHAR,
+                                                                            SERVICE_LABEL VARCHAR,
+                                                                            OFFERING_ID VARCHAR,
+                                                                            OFFERING_LABEL VARCHAR,
+                                                                            FEATURE_ID VARCHAR,
+                                                                            FEATURE_LABEL VARCHAR,
+                                                                            PROCEDURE_ID VARCHAR,
+                                                                            PROCEDURE_LABEL VARCHAR,
+                                                                            PHENOMENON_LABEL VARCHAR,
+                                                                            CATEGORY_ID VARCHAR,
+                                                                            CATEGORY_LABEL VARCHAR,
+                                                                            DATETIME TIMESTAMP,
+                                                                            MEASUREMENT_VALUE FLOAT,
+                                                                            MEASUREMENT_TIMESTAMP INTEGER,
+                                                                            AVERAGE_MEASUREMENT FLOAT,
+                                                                            PHENOMENON_ID INTEGER,
+                                                                            STATION_ID INTEGER)""")
 
-    #df.write.format(SNOWFLAKE_SOURCE_NAME).options(**sfOptions).option("dbtable", "<tablename>").mode('append').options(header=True).save()
+    df.write.format(SNOWFLAKE_SOURCE_NAME).options(**sfOptions).option("dbtable", f"ACADEMY_DBT.AXXES_ALEC.AVG_STATION_MEASUREMENT_{date.replace('-', '_')}").mode('overwrite').options(header=True).save()
     return
 
 
@@ -67,10 +90,12 @@ def main():
     logging.basicConfig(filename=f'{args.date}.log', filemode='w+', level=logging.INFO, format='[%(levelname)s %(asctime)s] %(message)s')
     try:
         logging.info(f"Using args: {args}")
-
+        start = time()
         egress_data(args.date, bucket)
+        logging.info(f"Job succeeded in {(time()-start):.2f} seconds")
     except Exception as e:
         logging.error(e)
+        logging.info(f"Job failed after {(time()-start):.2f} seconds")
         raise e
     finally:
         bucket.upload_file(f'{args.date}.log', f'Alec-data/logs/{args.date}/egress.log')

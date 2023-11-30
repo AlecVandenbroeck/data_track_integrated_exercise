@@ -8,6 +8,7 @@ import copy
 import json
 import os
 from datetime import datetime
+from time import time
 
 from util import create_s3_if_not_exists
 
@@ -67,11 +68,13 @@ def main():
     
     logging.basicConfig(filename=f'{args.date}.log', filemode='w+', level=logging.INFO, format='[%(levelname)s %(asctime)s] %(message)s')
     try:
-        logging.info(f"Using args: {args}")
-
+        logging.info(f"Starting job using args: {args}")
+        start = time()
         ingest_data(args.date, bucket)
+        logging.info(f"Job succeeded in {(time()-start):.2f} seconds")
     except Exception as e:
         logging.error(e)
+        logging.info(f"Job failed after {(time()-start):.2f} seconds")
         raise e
     finally:
         bucket.upload_file(f'{args.date}.log', f'Alec-data/logs/{args.date}/ingest.log')
