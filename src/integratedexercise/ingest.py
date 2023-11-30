@@ -11,15 +11,10 @@ from datetime import datetime
 
 from util import create_s3_if_not_exists
 
-CATEGORY_IDS = ["1", "5", "8", "71", "6001"]
-
-def ingest_data(env, date, bucket):
-    if env == 'all':
-        endpoint = f'https://geo.irceline.be/sos/api/v1/stations/'
-        stations_data = requests.get(endpoint).json()
-        station_ids = [x['properties']['id'] for x in stations_data]
-    else:
-        station_ids = [env]
+def ingest_data(date, bucket):
+    endpoint = f'https://geo.irceline.be/sos/api/v1/stations/'
+    stations_data = requests.get(endpoint).json()
+    station_ids = [x['properties']['id'] for x in stations_data]
     
     ts_count = 0
     logging.info(f"Found {len(station_ids)} stations to ingest data from.")
@@ -31,24 +26,24 @@ def ingest_data(env, date, bucket):
         raw_data['properties']['date'] = date
         time_series = raw_data['properties']['timeseries']
 
-        # only keep timeseries ids which correspond to one of the interesting category ids
-        filtered_tsi = [x for x in time_series.keys() if time_series[x]['category']['id'] in CATEGORY_IDS]
-        
+        filtered_tsi = time_series.keys()
         
         for tsi in filtered_tsi:
             # get the values for a day of all these timeseries
             raw_timeseries_data = get_timeseries_of_date(tsi, date)
 
             # Add values to the timeseries field
-            time_series[str(tsi)]['values'] = raw_timeseries_data
+            time_series[str(tsi)]['values'] = raw_timeseries_data['values']
 
             raw_data_copy = copy.deepcopy(raw_data)
             raw_data_copy['properties']['timeseries'] = {}
-            raw_data_copy['properties']['timeseries'][str(tsi)] = raw_data['properties']['timeseries'][str(tsi)]
-            metric = raw_data_copy['properties']['timeseries'][str(tsi)]['category']['id']
-            station = raw_data_copy['properties']['timeseries'][str(tsi)]['feature']['id']
+            raw_data_copy['properties']['timeseries'] = raw_data['properties']['timeseries'][str(tsi)]
+            metric = raw_data_copy['properties']['timeseries']['category']['id']
+            station = raw_data_copy['properties']['timeseries']['feature']['id']
             
             ts_count += 1
+            if ts_count == 1:
+                print(json.dumps(raw_data_copy, indent=2))
             bucket.put_object(Body=json.dumps(raw_data_copy), Key=f'Alec-data/raw/{date}/{station}/{metric}.json', ContentType='application/json')
     
     logging.info(f'Ingested {ts_count} timeseries.')
@@ -74,9 +69,10 @@ def main():
     try:
         logging.info(f"Using args: {args}")
 
-        ingest_data(args.env, args.date, bucket)
+        ingest_data(args.date, bucket)
     except Exception as e:
         logging.error(e)
+        raise e
     finally:
         bucket.upload_file(f'{args.date}.log', f'Alec-data/logs/{args.date}/ingest.log')
         os.remove(f'{args.date}.log')

@@ -47,4 +47,18 @@ with main_dag:
         "{{ds}}"
         ]},
     )
-    submit_ingest_job >> submit_transform_job
+
+    submit_transform_job = BatchOperator(
+        task_id="alec-egress",
+        job_name="alec-egress",
+        job_definition="dt-alec-egress",
+        job_queue="integrated-exercise-job-queue",
+        region_name="eu-west-1",
+        overrides={"command": [
+        "python3",
+        "./egress.py",
+        "-d",
+        "{{ds}}"
+        ]},
+    )
+    submit_ingest_job >> submit_transform_job >> submit_egress_job
