@@ -7,6 +7,7 @@ import boto3
 from pyspark.sql import SparkSession, Window
 from pyspark.sql.functions import explode, avg, to_timestamp
 from datetime import datetime as dt
+import json
 
 # https://community.snowflake.com/s/article/How-to-UPDATE-a-table-using-pyspark-via-the-Snowflake-Spark-connector
 
@@ -42,21 +43,16 @@ def egress_data(date: str, bucket):
         "fs.s3a.aws.credentials.provider",
         "com.amazonaws.auth.DefaultAWSCredentialsProviderChain",
     ).getOrCreate()
-
-    list_of_files = [f"s3a://data-track-integrated-exercise/{x.key}" for x in bucket.objects.filter(Prefix=f'Alec-data/clean/')]
-    df = session.read.parquet(list_of_files)
-
-    Utils.runQuery(sfOptions, "CREATE TABLE MY_TABLE(A INTEGER)")
-
+    sfOptions = get_snowflake_creds_from_sm('snowflake/integrated-exercise/alec-login')
+    df = session.read.parquet(f"s3a://data-track-integrated-exercise/Alec-data/clean/aggregate_station_by_day/{date}/")
+    df.printSchema()
     SNOWFLAKE_SOURCE_NAME = "net.snowflake.spark.snowflake"
 
-    df = spark.write.format(SNOWFLAKE_SOURCE_NAME) \
-    .options(**get_snowflake_creds_from_sm('snowflake/integrated-exercise/alec-login')) \
-    .option("query",  "select 1 as my_num union all select 2 as my_num") \
-    .option("dbtable", "emp_dept") \
-    .mode("append").options(header=True).save()
-
     
+    session.sparkContext._jvm.net.snowflake.spark.snowflake.Utils.runQuery(sfOptions, 
+                                                                          """CREATE TABLE IF NOT EXISTS ACADEMY_DBT.AXXES_ALEC.AVG_STATION_MEASUREMENT(A INTEGER)""")
+
+    #df.write.format(SNOWFLAKE_SOURCE_NAME).options(**sfOptions).option("dbtable", "<tablename>").mode('append').options(header=True).save()
     return
 
 

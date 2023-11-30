@@ -24,7 +24,6 @@ def transform_raw_data(date: str, bucket):
     list_of_files = [f"s3a://data-track-integrated-exercise/{x.key}" for x in bucket.objects.filter(Prefix=f'Alec-data/raw/{date}')]
     df = session.read.option("multiline", "true").json(list_of_files)
 
-    print(df.count())
     df = df.drop('type')
     df = df.withColumn('coordinates', df.geometry.coordinates)
     df = df.drop('geometry')
@@ -37,9 +36,9 @@ def transform_raw_data(date: str, bucket):
     df = df.drop('timeseries')
     df = df.withColumn('measurement_timestamp', to_timestamp(df.measurements.timestamp)).withColumn('measurement_value', df.measurements.value)
     df = df.drop('measurements')
-    #df = df.withColumn('average_measurement', avg('measurement_value').over(Window.partitionBy('phenomenon_id', 'station_id')))
+    df = df.withColumn('average_measurement', avg('measurement_value').over(Window.partitionBy('phenomenon_id', 'station_id')))
 
-    df.write.parquet(f"s3a://data-track-integrated-exercise/Alec-data/clean/{date}", partitionBy=['phenomenon_id', 'station_id'], mode='overwrite')
+    df.write.parquet(f"s3a://data-track-integrated-exercise/Alec-data/clean/aggregate_station_by_day/{date}", partitionBy=['phenomenon_id', 'station_id'], mode='overwrite')
     logging.info(f"Total number of rows written: {df.count()}")
     return
 
