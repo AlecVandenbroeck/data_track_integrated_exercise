@@ -10,4 +10,4 @@ ADD ./src/integratedexercise/egress.py .
 ADD requirements.txt .
 RUN pip install -r requirements.txt --no-cache-dir
 
-CMD ["python","egress.py","-d","2023-11-28"]
+CMD ["python3","egress.py","-d","2023-11-28"]

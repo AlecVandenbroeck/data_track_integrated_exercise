@@ -46,7 +46,7 @@ def egress_data(date: str, bucket):
         "com.amazonaws.auth.DefaultAWSCredentialsProviderChain",
     ).getOrCreate()
     sfOptions = get_snowflake_creds_from_sm('snowflake/integrated-exercise/alec-login')
-    df = session.read.parquet(f"s3a://data-track-integrated-exercise/Alec-data/clean/aggregate_station_by_day/{date}/")
+    df = session.read.parquet(f"s3a://data-track-integrated-exercise/Alec-data/data-marts/aggregate_station_by_day/avg/{date}/")
     df = df.drop('date')
     
 
@@ -55,22 +55,9 @@ def egress_data(date: str, bucket):
                                                                           f"""CREATE TABLE IF NOT EXISTS ACADEMY_DBT.AXXES_ALEC.AVG_STATION_MEASUREMENT_{date.replace('-', '_')} (
                                                                             COORDINATE_X FLOAT, 
                                                                             COORDINATE_Y FLOAT, 
-                                                                            COORDINATE_Z FLOAT,
                                                                             STATION_LABEL VARCHAR,
-                                                                            SERVICE_ID VARCHAR,
-                                                                            SERVICE_LABEL VARCHAR,
-                                                                            OFFERING_ID VARCHAR,
-                                                                            OFFERING_LABEL VARCHAR,
-                                                                            FEATURE_ID VARCHAR,
-                                                                            FEATURE_LABEL VARCHAR,
-                                                                            PROCEDURE_ID VARCHAR,
-                                                                            PROCEDURE_LABEL VARCHAR,
                                                                             PHENOMENON_LABEL VARCHAR,
-                                                                            CATEGORY_ID VARCHAR,
-                                                                            CATEGORY_LABEL VARCHAR,
                                                                             DATETIME TIMESTAMP,
-                                                                            MEASUREMENT_VALUE FLOAT,
-                                                                            MEASUREMENT_TIMESTAMP INTEGER,
                                                                             AVERAGE_MEASUREMENT FLOAT,
                                                                             PHENOMENON_ID INTEGER,
                                                                             STATION_ID INTEGER)""")

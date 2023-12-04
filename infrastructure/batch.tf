@@ -13,7 +13,7 @@ resource "aws_batch_job_definition" "ingest" {
       },
       {
         type  = "MEMORY"
-        value = "512"
+        value = "2048"
       }
     ]
   })
@@ -37,7 +37,31 @@ resource "aws_batch_job_definition" "transform" {
       },
       {
         type  = "MEMORY"
-        value = "512"
+        value = "2048"
+      }
+    ]
+  })
+  timeout {
+    attempt_duration_seconds = 1800
+  }
+}
+
+resource "aws_batch_job_definition" "create-datamarts" {
+  name = "dt-alec-create-datamarts-tf"
+  type = "container"
+  container_properties = jsonencode({
+    command = ["ls", "-la"],
+    image   = "167698347898.dkr.ecr.eu-west-1.amazonaws.com/alec-create-datamarts-tf:latest",
+    jobRoleArn = "arn:aws:iam::167698347898:role/integrated-exercise/integrated-exercise-batch-job-role",
+    executionRoleArn = "arn:aws:iam::167698347898:role/integrated-exercise/integrated-exercise-batch-job-role",
+    resourceRequirements = [
+      {
+        type  = "VCPU"
+        value = "1"
+      },
+      {
+        type  = "MEMORY"
+        value = "2048"
       }
     ]
   })
@@ -61,7 +85,7 @@ resource "aws_batch_job_definition" "egress" {
       },
       {
         type  = "MEMORY"
-        value = "512"
+        value = "2048"
       }
     ]
   })

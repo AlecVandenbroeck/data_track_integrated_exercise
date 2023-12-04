@@ -6,8 +6,8 @@ WORKDIR /opt/spark/work-dir
 USER 0
 
 ADD ./src/integratedexercise/util.py .
-ADD ./src/integratedexercise/transform.py .
+ADD ./src/integratedexercise/create-datamarts.py .
 ADD requirements.txt .
 RUN pip install -r requirements.txt --no-cache-dir
 
-CMD ["python3","transform.py","-d","2023-11-28"]
+CMD ["python3","create-datamarts.py","-d","2023-11-28"]
